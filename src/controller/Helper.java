@@ -18,9 +18,14 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
+import com.google.gson.Gson;
+import com.sun.jna.platform.win32.Netapi32Util.User;
+
 import entity.Collection;
+import entity.LoginResult;
 import entity.Question;
 import utils.HelperUtil;
+import utils.UserProperties;
 
 public class Helper {
 
@@ -54,7 +59,7 @@ public class Helper {
 			// 收藏的回答保存在相应收藏夹标题命名的文件夹下
 			getDetails(title, collections.get(i).getUrl());
 		}
-//		getDetails("https://www.zhihu.com/collection/43767303");
+		// getDetails("https://www.zhihu.com/collection/43767303");
 	}
 
 	private void getDetails(String title, String url) {
@@ -95,16 +100,16 @@ public class Helper {
 					Element titleLink = link.select("h2.zm-item-title > a").first();
 					if (titleLink != null) {
 						titleTemp = titleLink.text();
-					} 
+					}
 					question.setTitle(titleTemp);
-//					System.out.println(titleTemp);
+					// System.out.println(titleTemp);
 					Element urlLink = link.select("div.zm-item-rich-text").first();
 					question.setUrl("https://www.zhihu.com" + urlLink.attr("data-entry-url"));
 					Element answerLink = urlLink.select("textarea.content.hidden").first();
 					question.setAnswer(HelperUtil.parseAnswer(answerLink.text()));
 
 					questions.add(question);
-					
+
 					HelperUtil.writeQuestion(title, question);
 				}
 			}
@@ -115,9 +120,9 @@ public class Helper {
 			httpGet.releaseConnection();
 		}
 		System.out.println("报告:知乎助手已完成任务!");
-//		for (int i = 0; i < questions.size(); i++) {
-//			System.out.println(questions.get(i));
-//		}
+		// for (int i = 0; i < questions.size(); i++) {
+		// System.out.println(questions.get(i));
+		// }
 	}
 
 	private void getCollections() {
@@ -175,20 +180,50 @@ public class Helper {
 
 	private void loginZhihu() {
 		String phoneLoginUrl = "https://www.zhihu.com/login/phone_num";
-		String eamilLoginUrl = "https://www.zhihu.com/login/email";
+		String emailLoginUrl = "https://www.zhihu.com/login/email";
 
-		HttpPost httpPost = new HttpPost(eamilLoginUrl);
+		// System.out.println("请选择您的登陆方式(0为手机号登陆,1为邮箱登陆)");
+		// Scanner scanner = new Scanner(System.in);
+		// String loginWay = scanner.nextLine();
+		// // 当输入的是0或1时才能跳出循环
+		// while (!loginWay.equals("0") && !loginWay.equals("1")) {
+		// System.out.println("您的输入有误.0为手机号登陆,1为邮箱登陆,确认请按回车");
+		// loginWay = scanner.nextLine();
+		// }
+		String loginUrl = UserProperties.getLoginWay().equals("0") ? phoneLoginUrl : emailLoginUrl;
+		String account = UserProperties.getLoginWay().equals("0") ? "phone_num" : "email";
+
+		HttpPost httpPost = new HttpPost(loginUrl);
 		List<NameValuePair> params = new ArrayList<NameValuePair>();
 
-		params.add(new BasicNameValuePair("email", "315360570@qq.com"));
-		params.add(new BasicNameValuePair("password", "zhihuhelper"));
+		params.add(new BasicNameValuePair(account, UserProperties.getAccount()));
+		params.add(new BasicNameValuePair("password", UserProperties.getPassword()));
 		try {
 			httpPost.setEntity(new UrlEncodedFormEntity(params));
-			httpClient.execute(httpPost);
+			HttpResponse response = httpClient.execute(httpPost);
+			HttpEntity entity = response.getEntity();
+			String html = EntityUtils.toString(entity, "UTF-8");
+			// 解析登陆结果
+			parseData(html);
 		} catch (Exception e) {
 			e.printStackTrace();
 		} finally {
 			httpPost.releaseConnection();
+		}
+	}
+
+	private void parseData(String html) {
+		Gson gson = new Gson();
+		LoginResult loginResult = gson.fromJson(html, LoginResult.class);
+		if (loginResult.getR().equals("0")) {
+			System.out.println("登陆成功,知乎助手开始工作!");
+		} else {
+			if (loginResult.getData().getAccount() != null) {
+				System.out.println("登陆失败:" + HelperUtil.convertUnicode(loginResult.getData().getAccount()));
+			} else {
+				System.out.println("登陆失败:" + HelperUtil.convertUnicode(loginResult.getData().getPassword()));
+			}
+			System.exit(0);
 		}
 	}
 }
