@@ -23,7 +23,7 @@ public class HelperUtil {
 
 	public final static String emailLoginUrl = "https://www.zhihu.com/login/email";
 
-	private final static String filePath = SystemConfig.getFilePath();
+	private static String filePath;
 
 	/**
 	 * 解析登陆返回数据
@@ -70,6 +70,8 @@ public class HelperUtil {
 		Pattern p = Pattern.compile("(<img.*?>)");
 		Matcher m = p.matcher(answer);
 		while (m.find()) {
+			answer = answer.replaceAll("\\(", "<");
+			answer = answer.replaceAll("\\)", ">");
 			answer = answer.replaceAll(m.group(1), "(这里是一张图片哦~代号为" + (index++) + ",已保存在当前目录下");
 		}
 		answer = answer.replaceAll("<br>", "\r\n");
@@ -77,20 +79,50 @@ public class HelperUtil {
 		answer = answer.replaceAll("<.*?>", "");
 		return answer;
 	}
-
+	
 	/**
-	 * 创建收藏夹对应的文件夹
+	 * 创建主文件夹
 	 */
-	public static void createFile(String fileName) {
+	public static void createMainFile() {
 		try {
+			filePath = SystemConfig.getFilePath();
 			// 创建主文件夹
 			File file = new File(filePath);
 			// 如果文件夹不存在,则创建文件夹
 			if (!file.exists() && !file.isDirectory()) {
 				file.mkdir();
 			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+
+	/**
+	 * 创建用户文件夹
+	 */
+	public static void createUserFile(String userId) {
+		try {
+			// 创建主文件夹
+			createMainFile();
+			// 将filePath定位到用户文件夹下
+			filePath = filePath + "\\" + userId;
 			// 创建收藏夹文件夹
-			file = new File(filePath + "\\" + fileName);
+			File file = new File(filePath);
+			if (!file.exists() && !file.isDirectory()) {
+				file.mkdir();
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+	
+	/**
+	 * 创建收藏夹对应的文件夹
+	 */
+	public static void createCollectionFile(String fileName) {
+		try {
+			// 创建收藏夹文件夹
+			File file = new File(filePath + "\\" + fileName);
 			if (!file.exists() && !file.isDirectory()) {
 				file.mkdir();
 			}

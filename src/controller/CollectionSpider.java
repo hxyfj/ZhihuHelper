@@ -2,6 +2,7 @@ package controller;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Scanner;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
@@ -24,9 +25,7 @@ import utils.HelperUtil;
 import utils.SystemConfig;
 
 /**
- * 爬取用户收藏的所有回答
- * 分类下载保存到本地
- * 注意:一个知乎提问,只爬取用户自己所收藏的答案,其他答案忽略
+ * 爬取用户收藏的所有回答 分类下载保存到本地 注意:一个知乎提问,只爬取用户自己所收藏的答案,其他答案忽略
  */
 public class CollectionSpider {
 
@@ -36,12 +35,17 @@ public class CollectionSpider {
 
 	private List<Collection> collections;
 
-	public CollectionSpider() {
+	public CollectionSpider(String action) {
 		httpClient = HttpClients.createDefault();
-		// 登陆知乎
-		loginZhihu();
-		// 进入知乎首页获取用户信息
-		getUserInfo();
+		if (action.equals("0")) {
+			// 登陆知乎
+			loginZhihu();
+			// 进入知乎首页获取用户信息
+			getUserInfo();
+		} else {
+			userId = SystemConfig.getUserId();
+			System.out.println("知乎助手开始工作!");
+		}
 		// 获取所有收藏夹信息
 		getCollections();
 		// 循环读取每个收藏夹收藏的信息
@@ -50,14 +54,24 @@ public class CollectionSpider {
 	}
 
 	public static void main(String[] args) {
+		System.out.println("请选择您要执行的功能(0为爬取自己的收藏夹,1为爬取指定用户的收藏夹)");
+		Scanner scanner = new Scanner(System.in);
+		String action = scanner.nextLine();
+		// 当输入的是0或1时才能跳出循环
+		while (!action.equals("0") && !action.equals("1")) {
+			System.out.println("0为爬取自己的收藏夹,1为爬取指定用户的收藏夹");
+			action = scanner.nextLine();
+		}
+		scanner.close();
 		// 创建收藏夹爬虫
-		new CollectionSpider();
+		new CollectionSpider(action);
 	}
 
 	private void getQuestions() {
+		HelperUtil.createUserFile(userId);
 		for (int i = 0; i < collections.size(); i++) {
 			String collectionTitle = collections.get(i).getTitle();
-			HelperUtil.createFile(collectionTitle);
+			HelperUtil.createCollectionFile(collectionTitle);
 			System.out.println("收藏夹文件创建成功:" + collectionTitle);
 			System.out.println("开始下载保存收藏夹下的提问");
 			System.out.println();
@@ -118,7 +132,8 @@ public class CollectionSpider {
 						question.setUrl("https://www.zhihu.com" + urlLink.attr("data-entry-url"));
 						Element answerLink = urlLink.select("textarea.content.hidden").first();
 						// 处理答案并下载答案中包含的图片
-						question.setAnswer(HelperUtil.parseAnswer(collectionTitle, titleTemp, answerLink.text(), index));
+						question.setAnswer(
+								HelperUtil.parseAnswer(collectionTitle, titleTemp, answerLink.text(), index));
 					} else {
 						question.setAnswer("该回答暂时不能显示,可能已被知乎官方要求修改或删除");
 					}
@@ -196,14 +211,6 @@ public class CollectionSpider {
 
 	private void loginZhihu() {
 
-		// System.out.println("请选择您的登陆方式(0为手机号登陆,1为邮箱登陆)");
-		// Scanner scanner = new Scanner(System.in);
-		// String loginWay = scanner.nextLine();
-		// // 当输入的是0或1时才能跳出循环
-		// while (!loginWay.equals("0") && !loginWay.equals("1")) {
-		// System.out.println("您的输入有误.0为手机号登陆,1为邮箱登陆,确认请按回车");
-		// loginWay = scanner.nextLine();
-		// }
 		String loginUrl = SystemConfig.getLoginWay().equals("0") ? HelperUtil.phoneLoginUrl : HelperUtil.emailLoginUrl;
 		String account = SystemConfig.getLoginWay().equals("0") ? "phone_num" : "email";
 
@@ -225,6 +232,5 @@ public class CollectionSpider {
 			httpPost.releaseConnection();
 		}
 	}
-
 
 }
