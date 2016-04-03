@@ -81,7 +81,7 @@ public class HelperUtil {
 	/**
 	 * 创建收藏夹对应的文件夹
 	 */
-	public static void createFile(String collectionTitle) {
+	public static void createFile(String fileName) {
 		try {
 			// 创建主文件夹
 			File file = new File(filePath);
@@ -90,13 +90,10 @@ public class HelperUtil {
 				file.mkdir();
 			}
 			// 创建收藏夹文件夹
-			file = new File(filePath + "\\" + collectionTitle);
+			file = new File(filePath + "\\" + fileName);
 			if (!file.exists() && !file.isDirectory()) {
 				file.mkdir();
 			}
-			System.out.println("收藏夹文件创建成功:" + collectionTitle);
-			System.out.println("开始下载保存收藏夹下的提问");
-			System.out.println();
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -129,14 +126,14 @@ public class HelperUtil {
 	/**
 	 * 下载图片
 	 */
-	public static void downPic(String collectionTitle, String questionTitle, String url, int index) {
+	public static void downPic(String fileDir1, String fileDir2, String url, int index) {
 		try {
 			// 创建问题对应的图片文件夹
-			File file = new File(filePath + "\\" + collectionTitle + "\\" + questionTitle);
+			File file = new File(filePath + "\\" + fileDir1 + "\\" + fileDir2);
 			if (!file.exists() && !file.isDirectory()) {
 				file.mkdir();
 			}
-			file = new File(filePath + "\\" + collectionTitle + "\\" + questionTitle + "\\" + index + ".jpg");
+			file = new File(filePath + "\\" + fileDir1 + "\\" + fileDir2 + "\\" + index + ".jpg");
 			FileOutputStream fos = new FileOutputStream(file);
 			DataInputStream dis = new DataInputStream((new URL(url)).openStream());
 			byte[] buffer = new byte[1024];
@@ -145,7 +142,7 @@ public class HelperUtil {
 			while ((length = dis.read(buffer)) > 0) {
 				fos.write(buffer, 0, length);
 			}
-			System.out.println("正在下载图片:" + questionTitle + ",图片代号" + index);
+			System.out.println("正在下载图片:" + fileDir2 + ",图片代号" + index);
 			dis.close();
 			fos.close();
 		} catch (Exception e) {

@@ -46,10 +46,11 @@ public class CollectionSpider {
 		getCollections();
 		// 循环读取每个收藏夹收藏的信息
 		getQuestions();
+		System.out.println("报告:知乎助手已完成任务!");
 	}
 
 	public static void main(String[] args) {
-		// 创建爬虫
+		// 创建收藏夹爬虫
 		new CollectionSpider();
 	}
 
@@ -57,11 +58,13 @@ public class CollectionSpider {
 		for (int i = 0; i < collections.size(); i++) {
 			String collectionTitle = collections.get(i).getTitle();
 			HelperUtil.createFile(collectionTitle);
+			System.out.println("收藏夹文件创建成功:" + collectionTitle);
+			System.out.println("开始下载保存收藏夹下的提问");
+			System.out.println();
 			// 收藏的回答保存在相应收藏夹标题命名的文件夹下
 			getDetails(collectionTitle, collections.get(i).getUrl());
 		}
 		// getDetails("test", "https://www.zhihu.com/collection/43767604");
-		System.out.println("报告:知乎助手已完成任务!");
 	}
 
 	private void getDetails(String collectionTitle, String url) {
