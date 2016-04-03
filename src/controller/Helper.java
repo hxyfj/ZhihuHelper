@@ -2,6 +2,8 @@ package controller;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
@@ -19,7 +21,6 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 import com.google.gson.Gson;
-import com.sun.jna.platform.win32.Netapi32Util.User;
 
 import entity.Collection;
 import entity.LoginResult;
@@ -34,6 +35,9 @@ public class Helper {
 	private String userId;
 
 	private List<Collection> collections;
+
+	// 图片代号,重新进入一个收藏夹代号要初始化为1
+	private int index;
 
 	public Helper() {
 		httpClient = HttpClients.createDefault();
@@ -54,15 +58,16 @@ public class Helper {
 
 	private void getQuestions() {
 		for (int i = 0; i < collections.size(); i++) {
-			String title = collections.get(i).getTitle();
-			HelperUtil.createFile(title);
+			String collectionTitle = collections.get(i).getTitle();
+			HelperUtil.createFile(collectionTitle);
 			// 收藏的回答保存在相应收藏夹标题命名的文件夹下
-			getDetails(title, collections.get(i).getUrl());
+			getDetails(collectionTitle, collections.get(i).getUrl());
 		}
-		// getDetails("https://www.zhihu.com/collection/43767303");
+		// getDetails("test", "https://www.zhihu.com/collection/43767604");
+		System.out.println("报告:知乎助手已完成任务!");
 	}
 
-	private void getDetails(String title, String url) {
+	private void getDetails(String collectionTitle, String url) {
 		HttpGet httpGet = new HttpGet(url);
 		List<Question> questions = new ArrayList<>();
 
@@ -99,18 +104,25 @@ public class Helper {
 
 					Element titleLink = link.select("h2.zm-item-title > a").first();
 					if (titleLink != null) {
-						titleTemp = titleLink.text();
+						// 每当一个新的问题时,图片代号需要重新初始化
+						index = 1;
+						titleTemp = HelperUtil.handleFileName(titleLink.text());
 					}
 					question.setTitle(titleTemp);
 					// System.out.println(titleTemp);
 					Element urlLink = link.select("div.zm-item-rich-text").first();
-					question.setUrl("https://www.zhihu.com" + urlLink.attr("data-entry-url"));
-					Element answerLink = urlLink.select("textarea.content.hidden").first();
-					question.setAnswer(HelperUtil.parseAnswer(answerLink.text()));
+					// 如果收藏的回答被知乎官方要求修改或删除,将获取不到url和answer
+					if (urlLink != null) {
+						question.setUrl("https://www.zhihu.com" + urlLink.attr("data-entry-url"));
+						Element answerLink = urlLink.select("textarea.content.hidden").first();
+						question.setAnswer(parseAnswer(collectionTitle, titleTemp, answerLink.text()));
+					} else {
+						question.setAnswer("该回答暂时不能显示,可能已被知乎官方要求修改或删除");
+					}
 
 					questions.add(question);
 
-					HelperUtil.writeQuestion(title, question);
+					HelperUtil.writeQuestion(collectionTitle, question);
 				}
 			}
 
@@ -119,7 +131,6 @@ public class Helper {
 		} finally {
 			httpGet.releaseConnection();
 		}
-		System.out.println("报告:知乎助手已完成任务!");
 		// for (int i = 0; i < questions.size(); i++) {
 		// System.out.println(questions.get(i));
 		// }
@@ -141,7 +152,9 @@ public class Helper {
 
 			for (Element link : links) {
 				Collection collection = new Collection();
-				collection.setTitle(link.text());
+				// 删除文件名不能包含的非法字符
+				String title = HelperUtil.handleFileName(link.text());
+				collection.setTitle(title);
 				collection.setUrl("https://www.zhihu.com" + link.attr("href"));
 				collections.add(collection);
 			}
@@ -225,5 +238,40 @@ public class Helper {
 			}
 			System.exit(0);
 		}
+	}
+
+	/**
+	 * 替换answer中的html标签 为\r\n 处理a标签和img标签 删除所有的<>html标签 img处理
+	 */
+	public String parseAnswer(String collectionTitle, String questionTitle, String answer) {
+		Document doc = Jsoup.parse(answer);
+		// 处理答案中包含的超链接
+		Elements links = doc.select("a.wrap.external");
+		for (Element link : links) {
+			String href = link.attr("src");
+			String text = link.text();
+			// 正则表达式若出现括号没有成对的情况会报错,为了避免这个错误,将小括号替换为尖括号
+			text = text.replaceAll("\\(", "<");
+			text = text.replaceAll("\\)", ">");
+			answer = answer.replaceAll(text, "(" + text + ",超链接至: " + href + " )");
+		}
+		// 处理答案中包含的图片
+		links = doc.select("img");
+		// 暂存当前代号,下载图片后回复到当前代号
+		int tempIndex = index;
+		for (Element link : links) {
+			String src = link.attr("src");
+			HelperUtil.downPic(collectionTitle, questionTitle, src, index++);
+		}
+		index = tempIndex;
+		Pattern p = Pattern.compile("(<img.*?>)");
+		Matcher m = p.matcher(answer);
+		while (m.find()) {
+			answer = answer.replaceAll(m.group(1), "(这里是一张图片哦~代号为" + (index++) + ",已保存在当前目录下");
+		}
+		answer = answer.replaceAll("<br>", "\r\n");
+		answer = answer.replaceAll("</p>", "\r\n");
+		answer = answer.replaceAll("<.*?>", "");
+		return answer;
 	}
 }

@@ -1,44 +1,18 @@
 package utils;
 
+import java.io.DataInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
-
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
-import org.jsoup.select.Elements;
+import java.net.URL;
 
 import entity.Question;
 
 public class HelperUtil {
 
 	/**
-	 * 替换answer中的<br>
-	 * </p>
-	 * 为\r\n 处理a标签和img标签 删除所有的<>html标签 img处理 TODO
-	 */
-	public static String parseAnswer(String answer) {
-		// 处理答案中包含的超链接
-		Document doc = Jsoup.parse(answer);
-		Elements links = doc.select("a.wrap.external");
-		for (Element link : links) {
-			String href = link.attr("href");
-			String text = link.text();
-			// 正则中如果仅有左括号或仅有右括号会出错,为了避免这个错误将小括号转换为中括号
-			text = text.replaceAll("\\(", "<");
-			text = text.replaceAll("\\)", ">");
-			answer = answer.replaceAll(text, "(" + text + ",超链接至: " + href + " )");
-		}
-		answer = answer.replaceAll("<br>", "\r\n");
-		answer = answer.replaceAll("</p>", "\r\n");
-		answer = answer.replaceAll("<.*?>", "");
-		return answer;
-	}
-
-	/**
 	 * 创建收藏夹对应的文件夹
 	 */
-	public static void createFile(String fileName) {
+	public static void createFile(String collectionTitle) {
 		try {
 			// 创建主文件夹
 			File file = new File("d:\\zhihu");
@@ -47,12 +21,13 @@ public class HelperUtil {
 				file.mkdir();
 			}
 			// 创建收藏夹文件夹
-			file = new File("d:\\zhihu\\" + fileName);
+			file = new File("d:\\zhihu\\" + collectionTitle);
 			if (!file.exists() && !file.isDirectory()) {
 				file.mkdir();
 			}
-			System.out.println("收藏夹文件创建成功:" + fileName);
-			System.out.println("开始保存收藏夹下的提问");
+			System.out.println("收藏夹文件创建成功:" + collectionTitle);
+			System.out.println("开始下载保存收藏夹下的提问");
+			System.out.println();
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -61,11 +36,10 @@ public class HelperUtil {
 	/**
 	 * 写入文件
 	 */
-	public static void writeQuestion(String title, Question question) {
+	public static void writeQuestion(String collectionTitle, Question question) {
 		try {
-			// 文件名不能含有\/:*?"<>|,进行处理
-			String fileName = handleFileName(question.getTitle());
-			File file = new File("d:\\zhihu\\" + title + "\\" + fileName + ".txt");
+			String questionTitle = question.getTitle();
+			File file = new File("d:\\zhihu\\" + collectionTitle + "\\" + questionTitle + ".txt");
 			if (!file.exists())
 				file.createNewFile();
 			// 因为同一个提问可能收藏了多个回答,所以写入方式为追加
@@ -76,7 +50,35 @@ public class HelperUtil {
 					.getBytes());
 			out.close();
 
-			System.out.println("知乎回答保存成功:" + fileName);
+			System.out.println("知乎回答下载保存成功:" + questionTitle);
+			System.out.println();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+
+	/**
+	 * 下载图片
+	 */
+	public static void downPic(String collectionTitle, String questionTitle, String url, int index) {
+		try {
+			// 创建问题对应的图片文件夹
+			File file = new File("d:\\zhihu\\" + collectionTitle + "\\" + questionTitle);
+			if (!file.exists() && !file.isDirectory()) {
+				file.mkdir();
+			}
+			file = new File("d:\\zhihu\\" + collectionTitle + "\\" + questionTitle + "\\" + index + ".jpg");
+			FileOutputStream fos = new FileOutputStream(file);
+			DataInputStream dis = new DataInputStream((new URL(url)).openStream());
+			byte[] buffer = new byte[1024];
+			int length;
+			// 开始填充数据
+			while ((length = dis.read(buffer)) > 0) {
+				fos.write(buffer, 0, length);
+			}
+			System.out.println("正在下载图片:" + questionTitle + ",图片代号" + index);
+			dis.close();
+			fos.close();
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -84,6 +86,7 @@ public class HelperUtil {
 
 	/**
 	 * 处理文件名中的非法字符
+	 * 文件名不能含有\/:*?"<>|
 	 */
 	public static String handleFileName(String fileName) {
 		fileName = fileName.replaceAll("\\\\|/|:|\\*|\\?|\"|<|>", " ");
