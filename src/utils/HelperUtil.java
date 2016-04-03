@@ -4,10 +4,79 @@ import java.io.DataInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.net.URL;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
+
+import com.google.gson.Gson;
+
+import entity.LoginResult;
 import entity.Question;
 
 public class HelperUtil {
+
+	public final static String phoneLoginUrl = "https://www.zhihu.com/login/phone_num";
+
+	public final static String emailLoginUrl = "https://www.zhihu.com/login/email";
+
+	private final static String filePath = SystemConfig.getFilePath();
+
+	/**
+	 * 解析登陆返回数据
+	 */
+	public static void parseData(String html) {
+		Gson gson = new Gson();
+		LoginResult loginResult = gson.fromJson(html, LoginResult.class);
+		if (loginResult.getR().equals("0")) {
+			System.out.println("登陆成功,知乎助手开始工作!");
+		} else {
+			if (loginResult.getData().getAccount() != null) {
+				System.out.println("登陆失败:" + HelperUtil.convertUnicode(loginResult.getData().getAccount()));
+			} else {
+				System.out.println("登陆失败:" + HelperUtil.convertUnicode(loginResult.getData().getPassword()));
+			}
+			System.exit(0);
+		}
+	}
+
+	/**
+	 * 替换answer中的html标签 为\r\n 处理a标签和img标签 删除所有的<>html标签 img处理
+	 */
+	public static String parseAnswer(String collectionTitle, String questionTitle, String answer, int index) {
+		Document doc = Jsoup.parse(answer);
+		// 处理答案中包含的超链接
+		Elements links = doc.select("a.wrap.external");
+		for (Element link : links) {
+			String href = link.attr("src");
+			String text = link.text();
+			// 正则表达式若出现括号没有成对的情况会报错,为了避免这个错误,将小括号替换为尖括号
+			text = text.replaceAll("\\(", "<");
+			text = text.replaceAll("\\)", ">");
+			answer = answer.replaceAll(text, "(" + text + ",超链接至: " + href + " )");
+		}
+		// 处理答案中包含的图片
+		links = doc.select("img");
+		// 暂存当前代号,下载图片后回复到当前代号
+		int tempIndex = index;
+		for (Element link : links) {
+			String src = link.attr("src");
+			HelperUtil.downPic(collectionTitle, questionTitle, src, index++);
+		}
+		index = tempIndex;
+		Pattern p = Pattern.compile("(<img.*?>)");
+		Matcher m = p.matcher(answer);
+		while (m.find()) {
+			answer = answer.replaceAll(m.group(1), "(这里是一张图片哦~代号为" + (index++) + ",已保存在当前目录下");
+		}
+		answer = answer.replaceAll("<br>", "\r\n");
+		answer = answer.replaceAll("</p>", "\r\n");
+		answer = answer.replaceAll("<.*?>", "");
+		return answer;
+	}
 
 	/**
 	 * 创建收藏夹对应的文件夹
@@ -15,13 +84,13 @@ public class HelperUtil {
 	public static void createFile(String collectionTitle) {
 		try {
 			// 创建主文件夹
-			File file = new File("d:\\zhihu");
+			File file = new File(filePath);
 			// 如果文件夹不存在,则创建文件夹
 			if (!file.exists() && !file.isDirectory()) {
 				file.mkdir();
 			}
 			// 创建收藏夹文件夹
-			file = new File("d:\\zhihu\\" + collectionTitle);
+			file = new File(filePath + "\\" + collectionTitle);
 			if (!file.exists() && !file.isDirectory()) {
 				file.mkdir();
 			}
@@ -39,7 +108,7 @@ public class HelperUtil {
 	public static void writeQuestion(String collectionTitle, Question question) {
 		try {
 			String questionTitle = question.getTitle();
-			File file = new File("d:\\zhihu\\" + collectionTitle + "\\" + questionTitle + ".txt");
+			File file = new File(filePath + "\\" + collectionTitle + "\\" + questionTitle + ".txt");
 			if (!file.exists())
 				file.createNewFile();
 			// 因为同一个提问可能收藏了多个回答,所以写入方式为追加
@@ -63,11 +132,11 @@ public class HelperUtil {
 	public static void downPic(String collectionTitle, String questionTitle, String url, int index) {
 		try {
 			// 创建问题对应的图片文件夹
-			File file = new File("d:\\zhihu\\" + collectionTitle + "\\" + questionTitle);
+			File file = new File(filePath + "\\" + collectionTitle + "\\" + questionTitle);
 			if (!file.exists() && !file.isDirectory()) {
 				file.mkdir();
 			}
-			file = new File("d:\\zhihu\\" + collectionTitle + "\\" + questionTitle + "\\" + index + ".jpg");
+			file = new File(filePath + "\\" + collectionTitle + "\\" + questionTitle + "\\" + index + ".jpg");
 			FileOutputStream fos = new FileOutputStream(file);
 			DataInputStream dis = new DataInputStream((new URL(url)).openStream());
 			byte[] buffer = new byte[1024];
@@ -85,8 +154,7 @@ public class HelperUtil {
 	}
 
 	/**
-	 * 处理文件名中的非法字符
-	 * 文件名不能含有\/:*?"<>|
+	 * 处理文件名中的非法字符 文件名不能含有\/:*?"<>|
 	 */
 	public static String handleFileName(String fileName) {
 		fileName = fileName.replaceAll("\\\\|/|:|\\*|\\?|\"|<|>", " ");

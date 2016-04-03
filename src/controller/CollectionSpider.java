@@ -2,8 +2,6 @@ package controller;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
@@ -20,15 +18,17 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
-import com.google.gson.Gson;
-
 import entity.Collection;
-import entity.LoginResult;
 import entity.Question;
 import utils.HelperUtil;
-import utils.UserProperties;
+import utils.SystemConfig;
 
-public class Helper {
+/**
+ * 爬取用户收藏的所有回答
+ * 分类下载保存到本地
+ * 注意:一个知乎提问,只爬取用户自己所收藏的答案,其他答案忽略
+ */
+public class CollectionSpider {
 
 	private HttpClient httpClient;
 
@@ -36,10 +36,7 @@ public class Helper {
 
 	private List<Collection> collections;
 
-	// 图片代号,重新进入一个收藏夹代号要初始化为1
-	private int index;
-
-	public Helper() {
+	public CollectionSpider() {
 		httpClient = HttpClients.createDefault();
 		// 登陆知乎
 		loginZhihu();
@@ -52,8 +49,8 @@ public class Helper {
 	}
 
 	public static void main(String[] args) {
-		// 创建知乎助手实例
-		Helper helper = new Helper();
+		// 创建爬虫
+		new CollectionSpider();
 	}
 
 	private void getQuestions() {
@@ -70,6 +67,10 @@ public class Helper {
 	private void getDetails(String collectionTitle, String url) {
 		HttpGet httpGet = new HttpGet(url);
 		List<Question> questions = new ArrayList<>();
+		// 记录标题,若出现一个问题收藏了多个最佳答案,则第二个以后的答案的标题即为之前记录的标题(知乎只为第一个最佳答案显示标题)
+		String titleTemp = null;
+		// 图片代号,重新进入一个收藏夹代号要初始化为1
+		int index = 1;
 
 		try {
 			HttpResponse response = httpClient.execute(httpGet);
@@ -97,8 +98,6 @@ public class Helper {
 				doc = Jsoup.parse(html);
 
 				links = doc.select("div.zm-item");
-				// 记录标题,若出现一个问题收藏了多个最佳答案,则第二个以后的答案的标题即为之前记录的标题(知乎只为第一个最佳答案显示标题)
-				String titleTemp = null;
 				for (Element link : links) {
 					Question question = new Question();
 
@@ -115,7 +114,8 @@ public class Helper {
 					if (urlLink != null) {
 						question.setUrl("https://www.zhihu.com" + urlLink.attr("data-entry-url"));
 						Element answerLink = urlLink.select("textarea.content.hidden").first();
-						question.setAnswer(parseAnswer(collectionTitle, titleTemp, answerLink.text()));
+						// 处理答案并下载答案中包含的图片
+						question.setAnswer(HelperUtil.parseAnswer(collectionTitle, titleTemp, answerLink.text(), index));
 					} else {
 						question.setAnswer("该回答暂时不能显示,可能已被知乎官方要求修改或删除");
 					}
@@ -192,8 +192,6 @@ public class Helper {
 	}
 
 	private void loginZhihu() {
-		String phoneLoginUrl = "https://www.zhihu.com/login/phone_num";
-		String emailLoginUrl = "https://www.zhihu.com/login/email";
 
 		// System.out.println("请选择您的登陆方式(0为手机号登陆,1为邮箱登陆)");
 		// Scanner scanner = new Scanner(System.in);
@@ -203,21 +201,21 @@ public class Helper {
 		// System.out.println("您的输入有误.0为手机号登陆,1为邮箱登陆,确认请按回车");
 		// loginWay = scanner.nextLine();
 		// }
-		String loginUrl = UserProperties.getLoginWay().equals("0") ? phoneLoginUrl : emailLoginUrl;
-		String account = UserProperties.getLoginWay().equals("0") ? "phone_num" : "email";
+		String loginUrl = SystemConfig.getLoginWay().equals("0") ? HelperUtil.phoneLoginUrl : HelperUtil.emailLoginUrl;
+		String account = SystemConfig.getLoginWay().equals("0") ? "phone_num" : "email";
 
 		HttpPost httpPost = new HttpPost(loginUrl);
 		List<NameValuePair> params = new ArrayList<NameValuePair>();
 
-		params.add(new BasicNameValuePair(account, UserProperties.getAccount()));
-		params.add(new BasicNameValuePair("password", UserProperties.getPassword()));
+		params.add(new BasicNameValuePair(account, SystemConfig.getAccount()));
+		params.add(new BasicNameValuePair("password", SystemConfig.getPassword()));
 		try {
 			httpPost.setEntity(new UrlEncodedFormEntity(params));
 			HttpResponse response = httpClient.execute(httpPost);
 			HttpEntity entity = response.getEntity();
 			String html = EntityUtils.toString(entity, "UTF-8");
 			// 解析登陆结果
-			parseData(html);
+			HelperUtil.parseData(html);
 		} catch (Exception e) {
 			e.printStackTrace();
 		} finally {
@@ -225,53 +223,5 @@ public class Helper {
 		}
 	}
 
-	private void parseData(String html) {
-		Gson gson = new Gson();
-		LoginResult loginResult = gson.fromJson(html, LoginResult.class);
-		if (loginResult.getR().equals("0")) {
-			System.out.println("登陆成功,知乎助手开始工作!");
-		} else {
-			if (loginResult.getData().getAccount() != null) {
-				System.out.println("登陆失败:" + HelperUtil.convertUnicode(loginResult.getData().getAccount()));
-			} else {
-				System.out.println("登陆失败:" + HelperUtil.convertUnicode(loginResult.getData().getPassword()));
-			}
-			System.exit(0);
-		}
-	}
 
-	/**
-	 * 替换answer中的html标签 为\r\n 处理a标签和img标签 删除所有的<>html标签 img处理
-	 */
-	public String parseAnswer(String collectionTitle, String questionTitle, String answer) {
-		Document doc = Jsoup.parse(answer);
-		// 处理答案中包含的超链接
-		Elements links = doc.select("a.wrap.external");
-		for (Element link : links) {
-			String href = link.attr("src");
-			String text = link.text();
-			// 正则表达式若出现括号没有成对的情况会报错,为了避免这个错误,将小括号替换为尖括号
-			text = text.replaceAll("\\(", "<");
-			text = text.replaceAll("\\)", ">");
-			answer = answer.replaceAll(text, "(" + text + ",超链接至: " + href + " )");
-		}
-		// 处理答案中包含的图片
-		links = doc.select("img");
-		// 暂存当前代号,下载图片后回复到当前代号
-		int tempIndex = index;
-		for (Element link : links) {
-			String src = link.attr("src");
-			HelperUtil.downPic(collectionTitle, questionTitle, src, index++);
-		}
-		index = tempIndex;
-		Pattern p = Pattern.compile("(<img.*?>)");
-		Matcher m = p.matcher(answer);
-		while (m.find()) {
-			answer = answer.replaceAll(m.group(1), "(这里是一张图片哦~代号为" + (index++) + ",已保存在当前目录下");
-		}
-		answer = answer.replaceAll("<br>", "\r\n");
-		answer = answer.replaceAll("</p>", "\r\n");
-		answer = answer.replaceAll("<.*?>", "");
-		return answer;
-	}
 }

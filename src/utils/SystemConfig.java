@@ -3,13 +3,13 @@ package utils;
 import java.io.InputStream;
 import java.util.Properties;
 
-public class UserProperties {
+public class SystemConfig {
 
 	private static Properties props = new Properties();
 
 	static {
 		try {
-			InputStream in = UserProperties.class.getResourceAsStream("/user.properties");
+			InputStream in = SystemConfig.class.getResourceAsStream("/system.properties");
 			props.load(in);
 			in.close();
 			putProperties();
@@ -24,10 +24,13 @@ public class UserProperties {
 
 	private static String password;
 
+	private static String filePath;
+
 	private static void putProperties() {
 		loginWay = props.getProperty("loginWay");
 		account = props.getProperty("account");
 		password = props.getProperty("password");
+		filePath = props.getProperty("filePath");
 	}
 
 	public static String getLoginWay() {
@@ -35,7 +38,7 @@ public class UserProperties {
 	}
 
 	public static void setLoginWay(String loginWay) {
-		UserProperties.loginWay = loginWay;
+		SystemConfig.loginWay = loginWay;
 	}
 
 	public static String getAccount() {
@@ -43,7 +46,7 @@ public class UserProperties {
 	}
 
 	public static void setAccount(String account) {
-		UserProperties.account = account;
+		SystemConfig.account = account;
 	}
 
 	public static String getPassword() {
@@ -51,7 +54,15 @@ public class UserProperties {
 	}
 
 	public static void setPassword(String password) {
-		UserProperties.password = password;
+		SystemConfig.password = password;
+	}
+
+	public static String getFilePath() {
+		return filePath;
+	}
+
+	public static void setFilePath(String filePath) {
+		SystemConfig.filePath = filePath;
 	}
 
 }
