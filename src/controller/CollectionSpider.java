@@ -210,7 +210,6 @@ public class CollectionSpider {
 	}
 
 	private void loginZhihu() {
-
 		String loginUrl = SystemConfig.getLoginWay().equals("0") ? HelperUtil.phoneLoginUrl : HelperUtil.emailLoginUrl;
 		String account = SystemConfig.getLoginWay().equals("0") ? "phone_num" : "email";
 

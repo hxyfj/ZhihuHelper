@@ -1,12 +1,18 @@
 package controller;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Scanner;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
+import org.apache.http.NameValuePair;
 import org.apache.http.client.HttpClient;
+import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpPost;
 import org.apache.http.impl.client.HttpClients;
+import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -39,14 +45,19 @@ public class PicSpider {
 		Scanner scanner = new Scanner(System.in);
 		String url = scanner.nextLine();
 		HttpGet httpGet = new HttpGet(url);
+		String id = url.substring(url.length() - 8, url.length());
 		int index = 1;
 
 		try {
 			HttpResponse response = httpClient.execute(httpGet);
 			HttpEntity entity = response.getEntity();
 			String html = EntityUtils.toString(entity, "UTF-8");
-
 			Document doc = Jsoup.parse(html);
+			Element keyLink = doc.select("input[name=_xsrf]").first();
+			String key = keyLink.attr("value");
+
+			html = getMore(html, key, id);
+			doc = Jsoup.parse(html);
 			// 获取问题标题
 			Element titleLink = doc.select("h2.zm-item-title.zm-editable-content").first();
 			String title = titleLink.text();
@@ -80,6 +91,35 @@ public class PicSpider {
 			httpGet.releaseConnection();
 		}
 		scanner.close();
+	}
+
+	private String getMore(String html, String key, String id) {
+		String moreData;
+		int offset = 20;
+
+		HttpPost httpPost = new HttpPost("https://www.zhihu.com/node/QuestionAnswerListV2");
+		List<NameValuePair> params = new ArrayList<NameValuePair>();
+
+		httpPost.setHeader("cookie", "_xsrf=" + key);
+		params.add(new BasicNameValuePair("_xsrf", key));
+		params.add(new BasicNameValuePair("method", "next"));
+		try {
+			do {
+				params.add(new BasicNameValuePair("params",
+						"{\"url_token\":" + id + ",\"pagesize\":20,\"offset\":" + offset + "}"));
+				httpPost.setEntity(new UrlEncodedFormEntity(params));
+				HttpResponse response = httpClient.execute(httpPost);
+				HttpEntity entity = response.getEntity();
+				moreData = EntityUtils.toString(entity, "UTF-8");
+				html += HelperUtil.convertUnicode(moreData);
+
+				offset += 20;
+			} while (moreData.indexOf("\"msg\": []") == -1);
+			System.out.println(offset);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return html;
 	}
 
 }
