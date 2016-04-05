@@ -46,11 +46,15 @@ public class PicSpider {
 		String url = scanner.nextLine();
 		HttpGet httpGet = new HttpGet(url);
 		String id = url.substring(url.length() - 8, url.length());
-		int index = 1;
 
 		try {
 			HttpResponse response = httpClient.execute(httpGet);
 			HttpEntity entity = response.getEntity();
+
+			System.out.println("功能选择:0为下载用户头像,1为下载答案中的图片,2为全部下载");
+			String function = scanner.nextLine();
+			System.out.println("知乎助手开始工作!");
+
 			String html = EntityUtils.toString(entity, "UTF-8");
 			Document doc = Jsoup.parse(html);
 			Element keyLink = doc.select("input[name=_xsrf]").first();
@@ -65,23 +69,28 @@ public class PicSpider {
 			HelperUtil.createMainFile();
 			HelperUtil.createCollectionFile(title);
 			// 下载头像
-			Elements links = doc.select("img.zm-list-avatar.avatar");
-			for (Element link : links) {
-				String src = link.attr("src");
-				// 将图片替换为大图片
-				src = src.replaceAll("_s", "_l");
-				HelperUtil.downPic(title, "avatar", src, index++);
+			int index = 1;
+			if (function.equals("0") || function.equals("2")) {
+				Elements links = doc.select("img.zm-list-avatar.avatar");
+				for (Element link : links) {
+					String src = link.attr("src");
+					// 将图片替换为大图片
+					src = src.replaceAll("_s", "_l");
+					HelperUtil.downPic(title, "avatar", src, index++);
+				}
 			}
 			// 下载答案中的图片
 			index = 1;
-			// 暂存图片链接,如果新链接与该变量相等,则不进行图片下载,从而达到图片去重功能
-			String srcTemp = null;
-			links = doc.select("img.origin_image");
-			for (Element link : links) {
-				String src = link.attr("data-original");
-				if (!src.equals(srcTemp)) {
-					HelperUtil.downPic(title, "img", src, index++);
-					srcTemp = src;
+			if (function.equals("1") || function.equals("2")) {
+				// 暂存图片链接,如果新链接与该变量相等,则不进行图片下载,从而达到图片去重功能
+				String srcTemp = null;
+				Elements links = doc.select("img.origin_image");
+				for (Element link : links) {
+					String src = link.attr("data-original");
+					if (!src.equals(srcTemp)) {
+						HelperUtil.downPic(title, "img", src, index++);
+						srcTemp = src;
+					}
 				}
 			}
 
@@ -115,7 +124,6 @@ public class PicSpider {
 
 				offset += 20;
 			} while (moreData.indexOf("\"msg\": []") == -1);
-			System.out.println(offset);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
