@@ -13,9 +13,12 @@ public class PicThread extends Thread {
 	
 	private String type;
 	
-	public PicThread(String title, String type){
+	private int size;
+	
+	public PicThread(String title, String type, int size){
 		this.title = title;
 		this.type = type;
+		this.size = size;
 	}
 
 	@Override
@@ -29,7 +32,7 @@ public class PicThread extends Thread {
 				}
 				src = srcs.remove(0);
 			}
-			HelperUtil.downPic(title, type, src);
+			HelperUtil.downPic(title, type, src, size);
 			// 当存在的线程数为1时,表明当前线程为最后一个线程,下载完图片就将结束
 			if (threadCount == 1) {
 				System.out.println("报告:知乎助手已完成任务!");

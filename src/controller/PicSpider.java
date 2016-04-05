@@ -81,9 +81,10 @@ public class PicSpider {
 					srcs.add(src);
 				}
 				// 开启多线程下载图片
+				int size = srcs.size();
 				PicThread.setSrcs(srcs);
 				for (int i = 0; i < SystemConfig.getThreadCount(); i++) {
-					new PicThread(title, "avatar").start();
+					new PicThread(title, "avatar", size).start();
 				}
 			}
 			// 下载答案中的图片
@@ -101,12 +102,10 @@ public class PicSpider {
 					}
 				}
 				// 开启多线程下载图片
+				int size = srcs.size();
 				PicThread.setSrcs(srcs);
-				for (int i = 0; i < srcs.size(); i++) {
-					System.out.println(srcs.get(i));
-				}
 				for (int i = 0; i < SystemConfig.getThreadCount(); i++) {
-					new PicThread(title, "image").start();
+					new PicThread(title, "image", size).start();
 				}
 			}
 

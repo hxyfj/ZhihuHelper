@@ -4,6 +4,8 @@ import java.io.DataInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -64,10 +66,15 @@ public class HelperUtil {
 		links = doc.select("img");
 		// 暂存当前代号,下载图片后回复到当前代号
 		int tempIndex = index;
+		List<String> srcs = new ArrayList<>();
 		for (Element link : links) {
 			String src = link.attr("src");
-			HelperUtil.downPic(collectionTitle, questionTitle, src);
+			srcs.add(src);
 		}
+		for (int i = 0; i < srcs.size(); i++) {
+			HelperUtil.downPic(collectionTitle, questionTitle, srcs.get(i), srcs.size());
+		}
+
 		index = tempIndex;
 		Pattern p = Pattern.compile("(<img.*?>)");
 		Matcher m = p.matcher(answer);
@@ -81,7 +88,7 @@ public class HelperUtil {
 		answer = answer.replaceAll("<.*?>", "");
 		return answer;
 	}
-	
+
 	/**
 	 * 创建主文件夹
 	 */
@@ -117,7 +124,7 @@ public class HelperUtil {
 			e.printStackTrace();
 		}
 	}
-	
+
 	/**
 	 * 创建收藏夹对应的文件夹
 	 */
@@ -160,7 +167,7 @@ public class HelperUtil {
 	/**
 	 * 下载图片
 	 */
-	public static void downPic(String fileDir1, String fileDir2, String url) {
+	public static void downPic(String fileDir1, String fileDir2, String url, int size) {
 		try {
 			// 创建问题对应的图片文件夹
 			File file = new File(filePath + "\\" + fileDir1 + "\\" + fileDir2);
@@ -168,8 +175,8 @@ public class HelperUtil {
 				file.mkdir();
 			}
 			// 线程安全性
-			file = getSyncFile(fileDir1, fileDir2);
-		
+			file = getSyncFile(fileDir1, fileDir2, size);
+
 			FileOutputStream fos = new FileOutputStream(file);
 			DataInputStream dis = new DataInputStream((new URL(url)).openStream());
 			byte[] buffer = new byte[1024];
@@ -184,12 +191,12 @@ public class HelperUtil {
 			e.printStackTrace();
 		}
 	}
-	
-	public synchronized static File getSyncFile(String fileDir1, String fileDir2){
+
+	public synchronized static File getSyncFile(String fileDir1, String fileDir2, int size) {
 		if (fileDir2.equals("avatar")) {
-			System.out.println("正在下载头像:" + "头像代号" + index);
+			System.out.println("正在下载第" + index + "张头像,共" + size + "个头像");
 		} else {
-			System.out.println("正在下载图片:" + "图片代号" + index);
+			System.out.println("正在下载第" + index + "张图片,共" + size + "张图片");
 		}
 		return new File(filePath + "\\" + fileDir1 + "\\" + fileDir2 + "\\" + (index++) + ".jpg");
 	}
@@ -269,8 +276,8 @@ public class HelperUtil {
 		}
 		return outBuffer.toString();
 	}
-	
-	public static void initIndex(){
+
+	public static void initIndex() {
 		index = 1;
 	}
 }
