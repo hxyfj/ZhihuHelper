@@ -20,6 +20,8 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 import utils.HelperUtil;
+import utils.PicThread;
+import utils.SystemConfig;
 
 /**
  * 爬取用户指定问题下的所有图片 答案中的图片和头像图片将分别保存在两个文件夹中
@@ -32,7 +34,6 @@ public class PicSpider {
 		httpClient = HttpClients.createDefault();
 		// 抓取问题下的所有图片
 		getQuestionPic();
-		System.out.println("报告:知乎助手已完成任务!");
 	}
 
 	public static void main(String[] args) {
@@ -51,7 +52,7 @@ public class PicSpider {
 			HttpResponse response = httpClient.execute(httpGet);
 			HttpEntity entity = response.getEntity();
 
-			System.out.println("功能选择:0为下载用户头像,1为下载答案中的图片,2为全部下载");
+			System.out.println("功能选择:0为下载用户头像,1为下载答案中的图片");
 			String function = scanner.nextLine();
 			System.out.println("知乎助手开始工作!");
 
@@ -69,28 +70,43 @@ public class PicSpider {
 			HelperUtil.createMainFile();
 			HelperUtil.createCollectionFile(title);
 			// 下载头像
-			int index = 1;
-			if (function.equals("0") || function.equals("2")) {
+			HelperUtil.initIndex();
+			List<String> srcs = new ArrayList<>();
+			if (function.equals("0")) {
 				Elements links = doc.select("img.zm-list-avatar.avatar");
 				for (Element link : links) {
 					String src = link.attr("src");
 					// 将图片替换为大图片
 					src = src.replaceAll("_s", "_l");
-					HelperUtil.downPic(title, "avatar", src, index++);
+					srcs.add(src);
+				}
+				// 开启多线程下载图片
+				PicThread.setSrcs(srcs);
+				for (int i = 0; i < SystemConfig.getThreadCount(); i++) {
+					new PicThread(title, "avatar").start();
 				}
 			}
 			// 下载答案中的图片
-			index = 1;
-			if (function.equals("1") || function.equals("2")) {
+			HelperUtil.initIndex();
+			srcs = new ArrayList<>();
+			if (function.equals("1")) {
 				// 暂存图片链接,如果新链接与该变量相等,则不进行图片下载,从而达到图片去重功能
 				String srcTemp = null;
 				Elements links = doc.select("img.origin_image");
 				for (Element link : links) {
 					String src = link.attr("data-original");
 					if (!src.equals(srcTemp)) {
-						HelperUtil.downPic(title, "img", src, index++);
+						srcs.add(src);
 						srcTemp = src;
 					}
+				}
+				// 开启多线程下载图片
+				PicThread.setSrcs(srcs);
+				for (int i = 0; i < srcs.size(); i++) {
+					System.out.println(srcs.get(i));
+				}
+				for (int i = 0; i < SystemConfig.getThreadCount(); i++) {
+					new PicThread(title, "image").start();
 				}
 			}
 

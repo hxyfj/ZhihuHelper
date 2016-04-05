@@ -22,6 +22,8 @@ public class HelperUtil {
 	public final static String phoneLoginUrl = "https://www.zhihu.com/login/phone_num";
 
 	public final static String emailLoginUrl = "https://www.zhihu.com/login/email";
+	// 图标代号
+	private static int index = 1;
 
 	private static String filePath;
 
@@ -46,7 +48,7 @@ public class HelperUtil {
 	/**
 	 * 替换answer中的html标签 为\r\n 处理a标签和img标签 删除所有的<>html标签 img处理
 	 */
-	public static String parseAnswer(String collectionTitle, String questionTitle, String answer, int index) {
+	public static String parseAnswer(String collectionTitle, String questionTitle, String answer) {
 		Document doc = Jsoup.parse(answer);
 		// 处理答案中包含的超链接
 		Elements links = doc.select("a.wrap.external");
@@ -64,7 +66,7 @@ public class HelperUtil {
 		int tempIndex = index;
 		for (Element link : links) {
 			String src = link.attr("src");
-			HelperUtil.downPic(collectionTitle, questionTitle, src, index++);
+			HelperUtil.downPic(collectionTitle, questionTitle, src);
 		}
 		index = tempIndex;
 		Pattern p = Pattern.compile("(<img.*?>)");
@@ -158,14 +160,16 @@ public class HelperUtil {
 	/**
 	 * 下载图片
 	 */
-	public static void downPic(String fileDir1, String fileDir2, String url, int index) {
+	public static void downPic(String fileDir1, String fileDir2, String url) {
 		try {
 			// 创建问题对应的图片文件夹
 			File file = new File(filePath + "\\" + fileDir1 + "\\" + fileDir2);
 			if (!file.exists() && !file.isDirectory()) {
 				file.mkdir();
 			}
-			file = new File(filePath + "\\" + fileDir1 + "\\" + fileDir2 + "\\" + index + ".jpg");
+			// 线程安全性
+			file = getSyncFile(fileDir1, fileDir2);
+		
 			FileOutputStream fos = new FileOutputStream(file);
 			DataInputStream dis = new DataInputStream((new URL(url)).openStream());
 			byte[] buffer = new byte[1024];
@@ -174,12 +178,20 @@ public class HelperUtil {
 			while ((length = dis.read(buffer)) > 0) {
 				fos.write(buffer, 0, length);
 			}
-			System.out.println("正在下载图片:" + fileDir2 + ",图片代号" + index);
 			dis.close();
 			fos.close();
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
+	}
+	
+	public synchronized static File getSyncFile(String fileDir1, String fileDir2){
+		if (fileDir2.equals("avatar")) {
+			System.out.println("正在下载头像:" + "头像代号" + index);
+		} else {
+			System.out.println("正在下载图片:" + "图片代号" + index);
+		}
+		return new File(filePath + "\\" + fileDir1 + "\\" + fileDir2 + "\\" + (index++) + ".jpg");
 	}
 
 	/**
@@ -256,5 +268,9 @@ public class HelperUtil {
 
 		}
 		return outBuffer.toString();
+	}
+	
+	public static void initIndex(){
+		index = 1;
 	}
 }

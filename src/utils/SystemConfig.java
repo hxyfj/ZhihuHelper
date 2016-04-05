@@ -28,12 +28,15 @@ public class SystemConfig {
 
 	private static String filePath;
 
+	private static int threadCount;
+
 	private static void putProperties() {
 		userId = props.getProperty("userId");
 		loginWay = props.getProperty("loginWay");
 		account = props.getProperty("account");
 		password = props.getProperty("password");
 		filePath = props.getProperty("filePath");
+		threadCount = Integer.parseInt(props.getProperty("threadCount"));
 	}
 
 	public static String getUserId() {
@@ -54,6 +57,10 @@ public class SystemConfig {
 
 	public static String getFilePath() {
 		return filePath;
+	}
+
+	public static int getThreadCount() {
+		return threadCount;
 	}
 
 }

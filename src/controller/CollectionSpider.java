@@ -86,8 +86,6 @@ public class CollectionSpider {
 		List<Question> questions = new ArrayList<>();
 		// 记录标题,若出现一个问题收藏了多个最佳答案,则第二个以后的答案的标题即为之前记录的标题(知乎只为第一个最佳答案显示标题)
 		String titleTemp = null;
-		// 图片代号,重新进入一个收藏夹代号要初始化为1
-		int index = 1;
 
 		try {
 			HttpResponse response = httpClient.execute(httpGet);
@@ -121,7 +119,7 @@ public class CollectionSpider {
 					Element titleLink = link.select("h2.zm-item-title > a").first();
 					if (titleLink != null) {
 						// 每当一个新的问题时,图片代号需要重新初始化
-						index = 1;
+						HelperUtil.initIndex();
 						titleTemp = HelperUtil.handleFileName(titleLink.text());
 					}
 					question.setTitle(titleTemp);
@@ -133,7 +131,7 @@ public class CollectionSpider {
 						Element answerLink = urlLink.select("textarea.content.hidden").first();
 						// 处理答案并下载答案中包含的图片
 						question.setAnswer(
-								HelperUtil.parseAnswer(collectionTitle, titleTemp, answerLink.text(), index));
+								HelperUtil.parseAnswer(collectionTitle, titleTemp, answerLink.text()));
 					} else {
 						question.setAnswer("该回答暂时不能显示,可能已被知乎官方要求修改或删除");
 					}
