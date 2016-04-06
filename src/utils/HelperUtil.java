@@ -26,6 +26,8 @@ public class HelperUtil {
 	public final static String emailLoginUrl = "https://www.zhihu.com/login/email";
 	// 图标代号
 	private static int index = 1;
+	// 图片总数
+	private static int size = 0;
 
 	private static String filePath;
 
@@ -51,6 +53,7 @@ public class HelperUtil {
 	 * 替换answer中的html标签 为\r\n 处理a标签和img标签 删除所有的<>html标签 img处理
 	 */
 	public static String parseAnswer(String collectionTitle, String questionTitle, String answer) {
+
 		Document doc = Jsoup.parse(answer);
 		// 处理答案中包含的超链接
 		Elements links = doc.select("a.wrap.external");
@@ -60,6 +63,7 @@ public class HelperUtil {
 			// 正则表达式若出现括号没有成对的情况会报错,为了避免这个错误,将小括号替换为尖括号
 			text = text.replaceAll("\\(", "<");
 			text = text.replaceAll("\\)", ">");
+			// 含有极少数的可能遇到非法字符,避免因为出错跳出大循环,这里要处理异常
 			answer = answer.replaceAll(text, "(" + text + ",超链接至: " + href + " )");
 		}
 		// 处理答案中包含的图片
@@ -71,22 +75,25 @@ public class HelperUtil {
 			String src = link.attr("src");
 			srcs.add(src);
 		}
+		size = srcs.size();
 		for (int i = 0; i < srcs.size(); i++) {
-			HelperUtil.downPic(collectionTitle, questionTitle, srcs.get(i), srcs.size());
+			HelperUtil.downPic(collectionTitle, questionTitle, srcs.get(i));
 		}
 
 		index = tempIndex;
 		Pattern p = Pattern.compile("(<img.*?>)");
 		Matcher m = p.matcher(answer);
 		while (m.find()) {
+			answer = m.group(1);
 			answer = answer.replaceAll("\\(", "<");
 			answer = answer.replaceAll("\\)", ">");
-			answer = answer.replaceAll(m.group(1), "(这里是一张图片哦~代号为" + (index++) + ",已保存在当前目录下");
+			answer = answer.replaceAll(answer, "(这里是一张图片哦~代号为" + (index++) + ",已保存在当前目录下)");
 		}
 		answer = answer.replaceAll("<br>", "\r\n");
 		answer = answer.replaceAll("</p>", "\r\n");
 		answer = answer.replaceAll("<.*?>", "");
 		return answer;
+
 	}
 
 	/**
@@ -167,7 +174,7 @@ public class HelperUtil {
 	/**
 	 * 下载图片
 	 */
-	public static void downPic(String fileDir1, String fileDir2, String url, int size) {
+	public static void downPic(String fileDir1, String fileDir2, String url) {
 		try {
 			// 创建问题对应的图片文件夹
 			File file = new File(filePath + "\\" + fileDir1 + "\\" + fileDir2);
@@ -175,7 +182,7 @@ public class HelperUtil {
 				file.mkdir();
 			}
 			// 线程安全性
-			file = getSyncFile(fileDir1, fileDir2, size);
+			file = getSyncFile(fileDir1, fileDir2);
 
 			FileOutputStream fos = new FileOutputStream(file);
 			DataInputStream dis = new DataInputStream((new URL(url)).openStream());
@@ -192,11 +199,11 @@ public class HelperUtil {
 		}
 	}
 
-	public synchronized static File getSyncFile(String fileDir1, String fileDir2, int size) {
+	public synchronized static File getSyncFile(String fileDir1, String fileDir2) {
 		if (fileDir2.equals("avatar")) {
-			System.out.println("正在下载第" + index + "张头像,共" + size + "个头像");
+			System.out.println("知乎助手已抓取到" + size + "个头像,当前正在下载第" + index + "个头像");
 		} else {
-			System.out.println("正在下载第" + index + "张图片,共" + size + "张图片");
+			System.out.println("知乎助手已抓取到" + size + "张图片,当前正在下载第" + index + "张图片");
 		}
 		return new File(filePath + "\\" + fileDir1 + "\\" + fileDir2 + "\\" + (index++) + ".jpg");
 	}
@@ -205,7 +212,7 @@ public class HelperUtil {
 	 * 处理文件名中的非法字符 文件名不能含有\/:*?"<>|
 	 */
 	public static String handleFileName(String fileName) {
-		fileName = fileName.replaceAll("\\\\|/|:|\\*|\\?|\"|<|>", " ");
+		fileName = fileName.replaceAll("\\\\|/|:|\\*|\\?|\"|<|>", "");
 		return fileName;
 	}
 
@@ -221,7 +228,6 @@ public class HelperUtil {
 			if (aChar == '\\') {
 				aChar = ori.charAt(x++);
 				if (aChar == 'u') {
-					// Read the xxxx
 					int value = 0;
 					for (int i = 0; i < 4; i++) {
 						aChar = ori.charAt(x++);
@@ -279,5 +285,9 @@ public class HelperUtil {
 
 	public static void initIndex() {
 		index = 1;
+	}
+
+	public static void addSize() {
+		size++;
 	}
 }

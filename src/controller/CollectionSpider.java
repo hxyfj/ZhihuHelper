@@ -135,9 +135,7 @@ public class CollectionSpider {
 					} else {
 						question.setAnswer("该回答暂时不能显示,可能已被知乎官方要求修改或删除");
 					}
-
 					questions.add(question);
-
 					HelperUtil.writeQuestion(collectionTitle, question);
 				}
 			}
