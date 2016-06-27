@@ -48,8 +48,10 @@ public class PicSpider {
 			HttpResponse response = httpClient.execute(httpGet);
 			HttpEntity entity = response.getEntity();
 
-			System.out.println("功能选择:0为下载用户头像,1为下载答案中的图片");
-			String function = scanner.nextLine();
+			System.out.println("功能选择:0为下载用户头像,1为下载答案中的图片(输入其他字符默认下载图片)");
+			String str = scanner.nextLine();
+			// 解析用户请求
+			String function = str.equals("0") ? "avatar" : "image";
 			System.out.println("知乎助手开始工作!");
 
 			String html = EntityUtils.toString(entity, "UTF-8");
@@ -57,7 +59,7 @@ public class PicSpider {
 			Document doc = Jsoup.parse(html);
 			// 获取问题标题
 			Element titleLink = doc.select("h2.zm-item-title > span.zm-editable-content").first();
-			System.out.println(titleLink.text());
+			System.out.println("抓取问题：" + titleLink.text());
 			String title = HelperUtil.handleFileName(titleLink.text());
 			// 创建文件夹
 			HelperUtil.createMainFile();
@@ -65,26 +67,11 @@ public class PicSpider {
 			// 下载头像
 			HelperUtil.initIndex();
 			List<String> srcs = new ArrayList<>();
-			if (function.equals("0")) {
-				// 开启多线程爬取更多
-				new GetPicThread(srcs, id, "avatar").start();;
-	
-				for (int i = 0; i < SystemConfig.getThreadCount(); i++) {
-					new DownPicThread(title, "avatar", srcs).start();
-				}
+			// 开启多线程爬取更多
+			new GetPicThread(srcs, id, function).start();;
+			for (int i = 0; i < SystemConfig.getThreadCount(); i++) {
+				new DownPicThread(title, function, srcs).start();
 			}
-			// 下载答案中的图片
-			HelperUtil.initIndex();
-			srcs = new ArrayList<>();
-			if (function.equals("1")) {
-				// 开启多线程爬取更多
-				new GetPicThread(srcs, id, "image").start();;
-	
-				for (int i = 0; i < SystemConfig.getThreadCount(); i++) {
-					new DownPicThread(title, "image", srcs).start();
-				}
-			}
-
 		} catch (Exception e) {
 			e.printStackTrace();
 		} finally {
