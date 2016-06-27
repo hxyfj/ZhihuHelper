@@ -56,7 +56,8 @@ public class PicSpider {
 			
 			Document doc = Jsoup.parse(html);
 			// 获取问题标题
-			Element titleLink = doc.select("h2.zm-item-title.zm-editable-content").first();
+			Element titleLink = doc.select("h2.zm-item-title > span.zm-editable-content").first();
+			System.out.println(titleLink.text());
 			String title = HelperUtil.handleFileName(titleLink.text());
 			// 创建文件夹
 			HelperUtil.createMainFile();
@@ -66,7 +67,7 @@ public class PicSpider {
 			List<String> srcs = new ArrayList<>();
 			if (function.equals("0")) {
 				// 开启多线程爬取更多
-				new GetPicThread(srcs, id).start();;
+				new GetPicThread(srcs, id, "avatar").start();;
 	
 				for (int i = 0; i < SystemConfig.getThreadCount(); i++) {
 					new DownPicThread(title, "avatar", srcs).start();
@@ -77,7 +78,7 @@ public class PicSpider {
 			srcs = new ArrayList<>();
 			if (function.equals("1")) {
 				// 开启多线程爬取更多
-				new GetPicThread(srcs, id).start();;
+				new GetPicThread(srcs, id, "image").start();;
 	
 				for (int i = 0; i < SystemConfig.getThreadCount(); i++) {
 					new DownPicThread(title, "image", srcs).start();

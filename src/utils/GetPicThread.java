@@ -26,11 +26,14 @@ public class GetPicThread extends Thread {
 		
 	private String id;
 	
+	private String type;
+	
 	public static boolean isLive = true;
 		
-	public GetPicThread(List<String> srcs, String id) {
+	public GetPicThread(List<String> srcs, String id, String type) {
 		this.srcs = srcs;
 		this.id = id;
+		this.type = type;
 	}
 
 	@Override
@@ -54,18 +57,34 @@ public class GetPicThread extends Thread {
 				HttpEntity entity = response.getEntity();
 				moreData = EntityUtils.toString(entity, "UTF-8");
 				
-				doc = Jsoup.parse(HelperUtil.convertUnicode(moreData));
-				// 暂存图片链接,如果新链接与该变量相等,则不进行图片下载,从而达到图片去重功能
+				doc = Jsoup.parse(HelperUtil.convertUnicode(moreData));			
+				
 				String srcTemp = null;
-				Elements links = doc.select("img.origin_image");
-				for (Element link : links) {
-					String src = link.attr("data-original");
-					if (!src.equals(srcTemp)) {
-						srcs.add(src);
-						srcTemp = src;
-						HelperUtil.addSize();
+				// 下载头像
+				if ("avatar".equals(type)) {
+					Elements links = doc.select("img.zm-list-avatar.avatar");
+					for (Element link : links) {
+						String src = link.attr("src");
+						// 将图片替换为大图片
+						src = src.replaceAll("_s", "_l");
+						if (!src.equals(srcTemp)) {
+							srcs.add(src);
+							srcTemp = src;
+							HelperUtil.addSize();
+						}
 					}
-					
+				} else {
+					// 暂存图片链接,如果新链接与该变量相等,则不进行图片下载,从而达到图片去重功能
+					Elements links = doc.select("img.origin_image");
+					for (Element link : links) {
+						String src = link.attr("data-original");
+						if (!src.equals(srcTemp)) {
+							srcs.add(src);
+							srcTemp = src;
+							HelperUtil.addSize();
+						}
+						
+					}
 				}
 				
 				offset += 20;
